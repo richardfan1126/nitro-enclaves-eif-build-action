@@ -1,0 +1,30 @@
+---
+name: "AWS Nitro Enclaves EIF Build Action"
+description: |
+  A Github action to build reproducible AWS Nitro Enclaves EIF file
+inputs:
+  docker-build-context-path:
+    description: "The path of Docker build context directory. Relative to the project root"
+    required: true
+  dockerfile-path:
+    description: "The path of Dockerfile. Relative to the Docker build context directory"
+    required: true
+    default: Dockerfile
+outputs:
+  eif-file-path:
+    description: "The path of the built EIF file"
+    value: ${{ steps.run-build-script.outputs.eif-file-path }}
+  eif-info-path:
+    description: "The path of the text file containing EIF info"
+    value: ${{ steps.run-build-script.outputs.eif-info-path }}
+runs:
+  using: "composite"
+  steps:
+    - name: Run build script
+      id: run-build-script
+      env:
+        DOCKER_CONTEXT_DIR: ${{ inputs.docker-build-context-path }}
+        DOCKERFILE_PATH: ${{ inputs.dockerfile-path }}
+        EIF_OUTPUT_PATH: ${{ github.action_path }}/eif-output
+      shell: bash
+      run: ${{ github.action_path }}/scripts/build-eif.sh
