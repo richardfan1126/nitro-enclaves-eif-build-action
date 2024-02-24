@@ -13,6 +13,8 @@ This GitHub Action use [kaniko](https://github.com/GoogleContainerTools/kaniko) 
       dockerfile-path: Dockerfile
 ```
 
+See [richardfan1126/nitro-enclaves-rust-demo](https://github.com/richardfan1126/nitro-enclaves-rust-demo) for sample use case.
+
 ### Pre-requisites
 
 This action only runs on **x86 Linux** runner.
