@@ -2,6 +2,10 @@
 name: "AWS Nitro Enclaves EIF Build Action"
 description: |
   A Github action to build reproducible AWS Nitro Enclaves EIF file
+author: Richard Fan
+branding:
+  icon: 'package'
+  color: 'blue'
 inputs:
   docker-build-context-path:
     description: "The path of Docker build context directory. Relative to the project root"
@@ -20,6 +24,20 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Check Runner OS
+      if: ${{ runner.os != 'Linux' }}
+      shell: bash
+      run: |
+        echo "::error title=⛔ error hint::Support Linux Only"
+        exit 1
+
+    - name: Check Runner CPU arch
+      if: ${{ runner.arch != 'X64' }}
+      shell: bash
+      run: |
+        echo "::error title=⛔ error hint::Support X64 CPU Only"
+        exit 1
+
     - name: Run build script
       id: run-build-script
       env:

@@ -23,6 +23,7 @@ docker run \
     --destination ${DOCKER_IMAGE_TAG}:latest \
     --tar-path /workspace/docker.tar
 
+# Load image into Docker daemon
 docker load < docker.tar
 rm -f docker.tar
 
