@@ -17,7 +17,7 @@ See [richardfan1126/nitro-enclaves-rust-demo](https://github.com/richardfan1126/
 
 ### Pre-requisites
 
-This action only runs on **x86 Linux** runner.
+This action only runs on **x64 Linux** runner.
 
 ### Inputs
 
@@ -29,7 +29,11 @@ This action only runs on **x86 Linux** runner.
 
 * `dockerfile-path`
 
-    The name of the Dockerfile used to build the EIF file.
+    (Default: `Dockerfile`)
+
+    The path of the Dockerfile used to build the EIF file.
+
+    This path is relative to `docker-build-context-path`
 
 ### Outputs
 
