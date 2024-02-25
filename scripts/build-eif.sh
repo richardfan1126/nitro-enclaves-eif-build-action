@@ -2,7 +2,7 @@
 
 set -e
 
-cd ${GITHUB_WORKSPACE}/${DOCKER_CONTEXT_DIR}
+cd ${GITHUB_WORKSPACE}/"${DOCKER_CONTEXT_DIR}"
 
 # Generate a random tag name for the app image
 DOCKER_IMAGE_TAG=$(tr -dc a-z0-9 < /dev/random | head -c 13; echo)
@@ -15,7 +15,7 @@ KANIKO_EXECUTOR_IMAGE=gcr.io/kaniko-project/executor@sha256:e935bfe222bc3ba84797
 docker run \
     -v `pwd`:/workspace \
     ${KANIKO_EXECUTOR_IMAGE} \
-    --dockerfile ${DOCKERFILE_PATH} \
+    --dockerfile "${DOCKERFILE_PATH}" \
     --context dir:///workspace/ \
     --cache=false \
     --reproducible \
