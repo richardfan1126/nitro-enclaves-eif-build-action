@@ -4,8 +4,8 @@ set -e
 
 cd ${GITHUB_WORKSPACE}/"${DOCKER_CONTEXT_DIR}"
 
-# Generate a random tag name for the app image
-DOCKER_IMAGE_TAG=$(tr -dc a-z0-9 < /dev/random | head -c 13; echo)
+# Use static tag name for the app image
+DOCKER_IMAGE_TAG=enclave
 
 ##########################
 # Build app docker image #
