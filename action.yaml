@@ -31,6 +31,9 @@ inputs:
   artifact-tag:
     description: "The tag of the pushed artifact on ghcr. (Required when enable-ghcr-push is true)"
     required: false
+  github-token:
+    description: "The Github token used to login ghcr. (Required when enable-ghcr-push is true)"
+    required: false
 
 outputs:
   eif-file-path:
@@ -74,6 +77,7 @@ runs:
         EIF_FILE_NAME: ${{ inputs.eif-file-name }}
         EIF_INFO_FILE_NAME: ${{ inputs.eif-info-file-name }}
         ARTIFACT_TAG: ${{ inputs.artifact-tag }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         if [[ "${ENABLE_GHCR_PUSH}" != "true" && "${ENABLE_GHCR_PUSH}" != "false" ]]; then
           echo "::error title=⛔ error hint::enable-ghcr-push should be 'true' or 'false'"
@@ -91,8 +95,8 @@ runs:
         fi
 
         if [[ "${ENABLE_GHCR_PUSH}" ]]; then
-          if [[ -z "${EIF_FILE_NAME}" || -z "${EIF_INFO_FILE_NAME}" || -z "${ARTIFACT_TAG}" ]]; then
-            echo "::error title=⛔ error hint::eif-file-name, eif-info-file-name and artifact-tag must be specified when enable-ghcr-push is true"
+          if [[ -z "${EIF_FILE_NAME}" || -z "${EIF_INFO_FILE_NAME}" || -z "${ARTIFACT_TAG}" || -z "${GITHUB_TOKEN}" ]]; then
+            echo "::error title=⛔ error hint::eif-file-name, eif-info-file-name, artifact-tag and github-token must be specified when enable-ghcr-push is true"
             exit 1
           fi
         fi
