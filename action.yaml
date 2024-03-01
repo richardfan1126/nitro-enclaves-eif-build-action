@@ -132,7 +132,7 @@ runs:
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ inputs.github-token }}
 
     - name: Install Cosign
       if: ${{ inputs.enable-artifact-sign == 'true' }}
