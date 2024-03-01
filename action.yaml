@@ -44,13 +44,13 @@ outputs:
     value: ${{ steps.run-build-script.outputs.eif-info-path }}
   ghcr-artifact-digest:
     description: "The digest of the pushed ghcr artifact"
-    value: ${{ steps.push-file.digest || '' }}
+    value: ${{ steps.push-file.outputs.digest || '' }}
   ghcr-artifact-path:
     description: "The full path of the pushed ghcr artifact"
-    value: ${{ steps.push-file.path || '' }}
+    value: ${{ steps.push-file.outputs.path || '' }}
   rekor-log-index:
     description: "The Rekor transparency log index of the signing"
-    value: ${{ steps.sign-artifact.log-index || '' }}
+    value: ${{ steps.sign-artifact.outputs.log-index || '' }}
     
 runs:
   using: "composite"
