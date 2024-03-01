@@ -143,8 +143,8 @@ runs:
       if: ${{ inputs.enable-ghcr-push == 'true' }}
       shell: bash
       env:
-        EIF_FILE_PATH: ${{ steps.build-eif.outputs.eif-file-path }}
-        EIF_INFO_PATH: ${{ steps.build-eif.outputs.eif-info-path }}
+        EIF_FILE_PATH: ${{ steps.run-build-script.outputs.eif-file-path }}
+        EIF_INFO_PATH: ${{ steps.run-build-script.outputs.eif-info-path }}
         EIF_FILE_NAME: ${{ inputs.eif-file-name }}
         EIF_INFO_FILE_NAME: ${{ inputs.eif-info-file-name }}
         ARTIFACT_TAG: ${{ inputs.artifact-tag }}
