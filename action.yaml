@@ -174,5 +174,5 @@ runs:
       run: |
         RESPONSE=$(cosign sign --yes ${ARTIFACT_PATH} 2>&1)
         echo "${RESPONSE}"
-        LOG_INDEX=$(echo "${RETURN}" | grep "tlog entry created with index: " | cut -d ":" -f 2 | tr -d " ")
+        LOG_INDEX=$(echo "${RESPONSE}" | grep "tlog entry created with index: " | cut -d ":" -f 2 | tr -d " ")
         echo "log-index=${LOG_INDEX}" >> "${GITHUB_OUTPUT}"
