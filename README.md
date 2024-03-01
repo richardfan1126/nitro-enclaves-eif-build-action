@@ -10,6 +10,8 @@ There is another optional feature to use [SigStore](https://www.sigstore.dev/) a
 
 To enable these feature, set the input `enable-ghcr-push` _(For artifact upload)_ and `enable-artifact-sign` _(For artifact signing)_ to `true`
 
+Read [this](#how-to-verify-the-artifact-signature) on downloading and verifying the signed artifact
+
 ## Usage
 
 Example
@@ -199,3 +201,27 @@ If `enable-ghcr-push` is `true`, the following permission is required for the wo
     It can be used to find the signing log on [Rekor Search](https://search.sigstore.dev/)
 
     Only applicable when `enable-ghcr-push` is `true`.
+
+## How to verify the artifact signature
+
+In this Github Action, the artifact is uploaded to ghcr by [ORAS](https://oras.land/) and signed by [SigStore cosign](https://docs.sigstore.dev/signing/quickstart/).
+
+The uploaded artifact path is in the output `ghcr-artifact-path`, you can use the following command to pull it:
+
+```bash
+oras pull ghcr.io/username/repo:tag@sha256:<digest>
+```
+
+The artifact signing is recorded in Rekor transparency log.
+
+With the Log index in output `rekor-log-index`, you can find the signing log on [Rekor Search](https://search.sigstore.dev/)
+
+To verify the uploaded artifact against the signature, you can use the following command:
+
+Replace `<username>` with your Github username and `<repo>` with the Github repository name
+
+```bash
+cosign verify ghcr.io/username/repo:tag \
+    --certificate-identity-regexp https://github.com/<username>/<repo>/ \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
