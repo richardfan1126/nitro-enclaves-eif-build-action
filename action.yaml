@@ -94,7 +94,7 @@ runs:
           exit 1
         fi
 
-        if [[ "${ENABLE_GHCR_PUSH}" ]]; then
+        if [[ "${ENABLE_GHCR_PUSH}" == "true" ]]; then
           if [[ -z "${EIF_FILE_NAME}" || -z "${EIF_INFO_FILE_NAME}" || -z "${ARTIFACT_TAG}" || -z "${GITHUB_TOKEN}" ]]; then
             echo "::error title=⛔ error hint::eif-file-name, eif-info-file-name, artifact-tag and github-token must be specified when enable-ghcr-push is true"
             exit 1
