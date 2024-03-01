@@ -41,13 +41,13 @@ outputs:
     value: ${{ steps.run-build-script.outputs.eif-info-path }}
   ghcr-artifact-digest:
     description: "The digest of the pushed ghcr artifact"
-    value: ${{ steps.push-file.digest || "" }}
+    value: ${{ steps.push-file.digest || '' }}
   ghcr-artifact-path:
     description: "The full path of the pushed ghcr artifact"
-    value: ${{ steps.push-file.path || "" }}
+    value: ${{ steps.push-file.path || '' }}
   rekor-log-index:
     description: "The Rekor transparency log index of the signing"
-    value: ${{ steps.sign-artifact.log-index || "" }}
+    value: ${{ steps.sign-artifact.log-index || '' }}
     
 runs:
   using: "composite"
@@ -116,14 +116,14 @@ runs:
       shell: bash
       run: ${{ github.action_path }}/scripts/build-eif.sh
 
-    - name: setup-oras
-      if: ${{ inputs.enable-ghcr-push == "true" }}
+    - name: Setup oras
+      if: ${{ inputs.enable-ghcr-push == 'true' }}
       uses: oras-project/setup-oras@ee7dbe1144cb00080a89497f937dae78f85fce29  # oras-project/setup-oras@v1.1.0
       with:
         version: 1.1.0
 
     - name: Log into ghcr.io
-      if: ${{ inputs.enable-ghcr-push == "true" }}
+      if: ${{ inputs.enable-ghcr-push == 'true' }}
       uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d  # docker/login-action@v3.0.0
       with:
         registry: ghcr.io
@@ -131,12 +131,12 @@ runs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Install Cosign
-      if: ${{ inputs.enable-artifact-sign == "true" }}
+      if: ${{ inputs.enable-artifact-sign == 'true' }}
       uses: sigstore/cosign-installer@e1523de7571e31dbe865fd2e80c5c7c23ae71eb4  # sigstore/cosign-installer@v3.4.0
 
     - name: Push file to ghcr.io
       id: push-file
-      if: ${{ inputs.enable-ghcr-push == "true" }}
+      if: ${{ inputs.enable-ghcr-push == 'true' }}
       shell: bash
       env:
         EIF_FILE_PATH: ${{ steps.build-eif.outputs.eif-file-path }}
@@ -163,7 +163,7 @@ runs:
 
     - name: Sign artifact
       id: sign-artifact
-      if: ${{ inputs.enable-artifact-sign == "true" }}
+      if: ${{ inputs.enable-artifact-sign == 'true' }}
       shell: bash
       env:
         PATH: ${{ steps.push-file.outputs.path }}
