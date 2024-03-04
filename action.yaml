@@ -149,8 +149,13 @@ runs:
         EIF_INFO_FILE_NAME: ${{ inputs.eif-info-file-name }}
         ARTIFACT_TAG: ${{ inputs.artifact-tag }}
       run: |
-        mv "${EIF_FILE_PATH}" "${EIF_FILE_NAME}"
-        mv "${EIF_INFO_PATH}" "${EIF_INFO_FILE_NAME}"
+        WORKDIR="${{ github.action_path }}/artifact-push/"
+
+        mkdir ${WORKDIR}
+        cd ${WORKDIR}
+
+        cp "${EIF_FILE_PATH}" "${WORKDIR}/${EIF_FILE_NAME}"
+        cp "${EIF_INFO_PATH}" "${WORKDIR}/${EIF_INFO_FILE_NAME}"
 
         mkdir tmp/
 
