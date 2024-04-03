@@ -99,11 +99,9 @@ If `enable-ghcr-push` is `true`, the following permission is required for the wo
 
 * `github-token`
 
-    The token used to sign in to ghcr
+    (Default: `${{ github.token }}`)
 
-    This must be set if `enable-ghcr-push` is `true`.
-    
-    Suggest to use `${{ secrets.GITHUB_TOKEN }}`
+    The token used to sign in to ghcr
 
 ### Outputs
 

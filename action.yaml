@@ -34,6 +34,7 @@ inputs:
   github-token:
     description: "The Github token used to login ghcr. (Required when enable-ghcr-push is true)"
     required: false
+    default: ${{ github.token }}
 
 outputs:
   eif-file-path:
