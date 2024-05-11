@@ -35,9 +35,14 @@ inputs:
   artifact-tag:
     description: "The tag of the pushed artifact on ghcr. (Required when enable-ghcr-push is true)"
     required: false
+  save-pcrs-in-annotation:
+    description: "Whether to save PCR values as Oras annotation (Allowed values: 'true', 'false')"
+    required: true
+    default: "false"
   github-token:
     description: "The Github token used to login ghcr. (Required when enable-ghcr-push is true)"
     required: false
+    default: ${{ github.token }}
 
 outputs:
   eif-file-path:
@@ -85,6 +90,7 @@ runs:
         EIF_FILE_NAME: ${{ inputs.eif-file-name }}
         EIF_INFO_FILE_NAME: ${{ inputs.eif-info-file-name }}
         ARTIFACT_TAG: ${{ inputs.artifact-tag }}
+        SAVE_PCRS_IN_ANNOTATION: ${{ inputs.save-pcrs-in-annotation }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         if [[ "${ENABLE_GHCR_PUSH}" != "true" && "${ENABLE_GHCR_PUSH}" != "false" ]]; then
@@ -102,6 +108,11 @@ runs:
           exit 1
         fi
 
+        if [[ "${SAVE_PCRS_IN_ANNOTATION}" != "true" && "${SAVE_PCRS_IN_ANNOTATION}" != "false" ]]; then
+          echo "::error title=⛔ error hint::save-pcrs-in-annotation should be 'true' or 'false'"
+          exit 1
+        fi
+
         if [[ "${ENABLE_ARTIFACT_SIGN}" == "true" && "${ENABLE_GHCR_PUSH}" != "true" ]]; then
           echo "::error title=⛔ error hint::enable-ghcr-push must be true when enable-artifact-sign is true"
           exit 1
@@ -109,6 +120,11 @@ runs:
 
         if [[ "${ENABLE_GITHUB_ATTEST}" == "true" && "${ENABLE_GHCR_PUSH}" != "true" ]]; then
           echo "::error title=⛔ error hint::enable-ghcr-push must be true when enable-github-attest is true"
+          exit 1
+        fi
+
+        if [[ "${SAVE_PCRS_IN_ANNOTATION}" == "true" && "${ENABLE_GHCR_PUSH}" != "true" ]]; then
+          echo "::error title=⛔ error hint::enable-ghcr-push must be true when save-pcrs-in-annotation is true"
           exit 1
         fi
 
@@ -166,6 +182,7 @@ runs:
         EIF_FILE_NAME: ${{ inputs.eif-file-name }}
         EIF_INFO_FILE_NAME: ${{ inputs.eif-info-file-name }}
         ARTIFACT_TAG: ${{ inputs.artifact-tag }}
+        SAVE_PCRS_IN_ANNOTATION: ${{ inputs.save-pcrs-in-annotation }}
       run: |
         WORKDIR="${{ github.action_path }}/artifact-push/"
 
@@ -177,12 +194,27 @@ runs:
 
         mkdir tmp/
 
-        oras push \
-          --export-manifest tmp/manifest.json \
-          "ghcr.io/${{ github.repository }}:${ARTIFACT_TAG}" \
-          "${EIF_FILE_NAME}" \
-          "${EIF_INFO_FILE_NAME}"
-        
+        if [[ "${SAVE_PCRS_IN_ANNOTATION}" == "true" ]]; then
+          PCR0=$(jq -r ".Measurements.PCR0" ${WORKDIR}/${EIF_INFO_FILE_NAME})
+          PCR1=$(jq -r ".Measurements.PCR1" ${WORKDIR}/${EIF_INFO_FILE_NAME})
+          PCR2=$(jq -r ".Measurements.PCR2" ${WORKDIR}/${EIF_INFO_FILE_NAME})
+
+          oras push \
+            --export-manifest tmp/manifest.json \
+            --annotation "PCR0=${PCR0}" \
+            --annotation "PCR1=${PCR1}" \
+            --annotation "PCR2=${PCR2}" \
+            "ghcr.io/${{ github.repository }}:${ARTIFACT_TAG}" \
+            "${EIF_FILE_NAME}" \
+            "${EIF_INFO_FILE_NAME}"
+        else
+          oras push \
+            --export-manifest tmp/manifest.json \
+            "ghcr.io/${{ github.repository }}:${ARTIFACT_TAG}" \
+            "${EIF_FILE_NAME}" \
+            "${EIF_INFO_FILE_NAME}"
+        fi
+
         DIGEST=$(sha256sum tmp/manifest.json | cut -d " " -f 1)
 
         echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
