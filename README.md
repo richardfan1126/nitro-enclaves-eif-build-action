@@ -34,6 +34,7 @@ steps:
       eif-file-name: enclave.eif
       eif-info-file-name: enclave-info.json
       artifact-tag: latest
+      save-pcrs-in-annotation: true
       github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
@@ -51,7 +52,7 @@ If `enable-ghcr-push` is `true`, the following permission is required for the wo
 
 ### Inputs
 
-* `docker-build-context-path`
+* `docker-build-context-path` (**Required**)
 
     The path of the Docker build context. Usually, it is the directory containing your `Dockerfile`.
 
@@ -96,6 +97,16 @@ If `enable-ghcr-push` is `true`, the following permission is required for the wo
     The tag of the artifact uploaded to ghcr
 
     This must be set if `enable-ghcr-push` is `true`.
+
+* `save-pcrs-in-annotation`
+
+    (Default: `false`)
+
+    Set to `true` to add PRC values of the EIF (PCR0, PCR1 and PCR2) as artifact annotation.
+
+    Read ORAS documentation for more detail: https://oras.land/docs/how_to_guides/manifest_annotations
+
+    If this input is `true`, `enable-ghcr-push` must also set to `true`.
 
 * `github-token`
 
