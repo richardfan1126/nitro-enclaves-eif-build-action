@@ -236,7 +236,7 @@ runs:
     - name: Github attest
       id: github-attest
       if: ${{ inputs.enable-github-attest == 'true' }}
-      uses: actions/attest-build-provenance@897ed5eab6ed058a474202017ada7f40bfa52940  # actions/attest-build-provenance@v1.0.0
+      uses: actions/attest-build-provenance@bdd51370e0416ac948727f861e03c2f05d32d78e  # actions/attest-build-provenance@v1.3.2
       with:
         subject-name: ${{ steps.push-file.outputs.path }}
         subject-digest: "sha256:${{ steps.push-file.outputs.digest }}"
