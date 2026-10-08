@@ -1,51 +1,46 @@
 #!/bin/bash
+# Builds the app image reproducibly, then turns it into an EIF inside an
+# Amazon Linux container running nitro-cli with the custom kernel blobs.
+set -euo pipefail
 
-set -e
+: "${CONTEXT:?}" "${DOCKERFILE:?}" "${KERNEL_BLOBS:?}" "${EIF_NAME:?}" "${OUTPUT_DIR:?}"
+BUILD_ARGS="${BUILD_ARGS:-}"
+APP_IMAGE=enclave-app:latest
+BUILDER=eif-builder
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-cd ${GITHUB_WORKSPACE}/"${DOCKER_CONTEXT_DIR}"
+##########################################
+# App image, reproducible                #
+##########################################
+# docker-container driver is required: the default docker driver sets the image
+# "created" time but silently ignores rewrite-timestamp for file mtimes.
+docker buildx inspect "$BUILDER" >/dev/null 2>&1 \
+  || docker buildx create --name "$BUILDER" --driver docker-container >/dev/null
 
-# Use static tag name for the app image
-DOCKER_IMAGE_TAG=enclave
+build_args=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && build_args+=(--build-arg "$line")
+done <<< "$BUILD_ARGS"
 
-##########################
-# Build app docker image #
-##########################
-KANIKO_EXECUTOR_IMAGE=gcr.io/kaniko-project/executor@sha256:e935bfe222bc3ba84797e90a95fcfb1a63e61bcf81275c2cac5edfb0343b2e85 # kaniko/executor:v1.18.0
+docker buildx --builder "$BUILDER" build \
+  --platform linux/amd64 \
+  --build-arg SOURCE_DATE_EPOCH=0 \
+  --provenance=false --sbom=false \
+  --output type=docker,rewrite-timestamp=true \
+  ${build_args[@]+"${build_args[@]}"} \
+  -f "$CONTEXT/$DOCKERFILE" -t "$APP_IMAGE" "$CONTEXT"
 
-docker run \
-    -v `pwd`:/workspace \
-    ${KANIKO_EXECUTOR_IMAGE} \
-    --dockerfile "${DOCKERFILE_PATH}" \
-    --context dir:///workspace/ \
-    --cache=false \
-    --reproducible \
-    --no-push \
-    --destination ${DOCKER_IMAGE_TAG}:latest \
-    --tar-path /workspace/docker.tar
+##########################################
+# EIF                                    #
+##########################################
+mkdir -p "$OUTPUT_DIR"
+docker build --platform linux/amd64 -t eif-builder-image -f "$SCRIPTS_DIR/eif-builder.Dockerfile" "$SCRIPTS_DIR"
 
-# Load image into Docker daemon
-docker load < docker.tar
-rm -f docker.tar
+DOCKER_SOCK=$(docker context inspect --format '{{.Endpoints.docker.Host}}' | sed 's#^unix://##')
 
-#############
-# Build EIF #
-#############
-cd ${GITHUB_ACTION_PATH}/scripts
-
-# Create directory for EIF output
-if [[ ! -d ${EIF_OUTPUT_PATH} ]]; then
-    mkdir ${EIF_OUTPUT_PATH}
-fi
-
-# Build EIF builder image
-docker build -t eif-builder -f eif-builder.Dockerfile .
-
-# Get local docker socket path
-DOCKER_SOCK_PATH=$(docker context inspect | jq -r '.[0].Endpoints.docker.Host' | sed "s^unix://^^")
-
-# Run EIF builder with Docker-in-Docker
-docker run -v ${DOCKER_SOCK_PATH}:/var/run/docker.sock -v ${EIF_OUTPUT_PATH}:/output -e DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG} eif-builder
-
-# Output
-echo "eif-file-path=${EIF_OUTPUT_PATH}/enclave.eif" >> ${GITHUB_OUTPUT}
-echo "eif-info-path=${EIF_OUTPUT_PATH}/eif-info.txt" >> ${GITHUB_OUTPUT}
+docker run --rm --platform linux/amd64 \
+  -v "$DOCKER_SOCK":/var/run/docker.sock \
+  -v "$(realpath "$KERNEL_BLOBS")":/blobs:ro \
+  -v "$(realpath "$OUTPUT_DIR")":/output \
+  -e APP_IMAGE="$APP_IMAGE" -e EIF_NAME="$EIF_NAME" \
+  eif-builder-image

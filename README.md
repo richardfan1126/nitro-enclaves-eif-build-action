@@ -1,236 +1,83 @@
-# AWS Nitro Enclaves EIF Build GitHub Action
+# Nitro Enclaves EIF build action
 
-This GitHub Action use [kaniko](https://github.com/GoogleContainerTools/kaniko) and Amazon Linux container with [nitro-cli](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave-cli.html) to build a reproducible AWS Nitro Enclaves EIF file and its information.
+Builds an AWS Nitro Enclaves EIF from a Dockerfile with a **custom kernel** and
+outputs the EIF, its `describe-eif` JSON, PCR0-2 and the EIF sha256.
 
-## Artifact upload and signing
+How it works:
 
-This actions has an optional feature to upload the EIF file and its info the [ghcr registry](https://docs.github.com/en/packages/quickstart).
+1. The app image is built with BuildKit (`docker-container` driver) using
+   `SOURCE_DATE_EPOCH=0` and `rewrite-timestamp=true`, so identical inputs give
+   an identical image.
+2. An Amazon Linux 2023 container with a pinned `nitro-cli` replaces
+   `/usr/share/nitro_enclaves/blobs` with your kernel blobs and runs
+   `nitro-cli build-enclave` + `describe-eif`.
 
-There is another optional feature to use [SigStore](https://www.sigstore.dev/) and the Github actions token to sign the upload artifact.
-
-To enable these feature, set the input `enable-ghcr-push` _(For artifact upload)_ and `enable-artifact-sign` _(For artifact signing)_ to `true`
-
-Read [this](#how-to-verify-the-artifact-signature) on downloading and verifying the signed artifact
+No registry, no signing: the EIF is a plain file you upload or publish yourself.
 
 ## Usage
 
-Example
-
 ```yaml
-# The following permissions are required when "enable-ghcr-push" is true
-permissions:
-  packages: write
-  id-token: write
-
 steps:
+  - uses: actions/checkout@v4
+
   - name: Build EIF
-    id: build-eif
-    uses: richardfan1126/nitro-enclaves-eif-build-action@v1
+    id: eif
+    uses: idos-network/nitro-enclaves-eif-build-action@v2
     with:
-      docker-build-context-path: app/
-      dockerfile-path: Dockerfile
-      enable-ghcr-push: true
-      enable-artifact-sign: true
-      eif-file-name: enclave.eif
-      eif-info-file-name: enclave-info.json
-      artifact-tag: latest
-      save-pcrs-in-annotation: true
-      github-token: ${{ secrets.GITHUB_TOKEN }}
+      context: enclave-service/
+      dockerfile: Dockerfile
+      kernel-blobs: aws-nitro-kernel/blobs/
+      eif-name: idos-enclave.eif
+      build-args: |
+        S3_SECRETS_BUCKET=${{ secrets.STAGING_S3_BUCKET }}
+        S3_SECRETS_REGION=${{ vars.STAGING_S3_REGION }}
+
+  - uses: actions/upload-artifact@v4
+    with:
+      name: idos-enclave-eif-${{ github.sha }}
+      path: |
+        ${{ steps.eif.outputs.eif-path }}
+        ${{ steps.eif.outputs.info-path }}
+
+  - name: Summary
+    run: |
+      {
+        echo "sha256: ${{ steps.eif.outputs.eif-sha256 }}"
+        echo "PCR0: ${{ steps.eif.outputs.pcr0 }}"
+        echo "PCR1: ${{ steps.eif.outputs.pcr1 }}"
+        echo "PCR2: ${{ steps.eif.outputs.pcr2 }}"
+      } >> "$GITHUB_STEP_SUMMARY"
 ```
 
-See [richardfan1126/nitro-enclaves-cosign-sandbox](https://github.com/richardfan1126/nitro-enclaves-cosign-sandbox) for sample use case.
+## Inputs
 
-### Pre-requisites
+| Input | Required | Default | Description |
+| --- | --- | --- | --- |
+| `context` | yes | | Docker build context, relative to the repo root |
+| `dockerfile` | no | `Dockerfile` | Dockerfile path, relative to the context |
+| `kernel-blobs` | yes | | Dir with `bzImage`, `cmdline`, `init`, `linuxkit`, `nsm.ko` |
+| `build-args` | no | | `KEY=VALUE` per line, passed as `--build-arg` |
+| `eif-name` | no | `enclave.eif` | Output file name |
 
-This action only runs on **x64 Linux** runner.
+## Outputs
 
-If `enable-ghcr-push` is `true`, the following permission is required for the workflow:
+`eif-path`, `info-path`, `eif-sha256`, `pcr0`, `pcr1`, `pcr2`.
 
-* `packages: write`
-
-* `id-token: write`
-
-### Inputs
-
-* `docker-build-context-path` (**Required**)
-
-    The path of the Docker build context. Usually, it is the directory containing your `Dockerfile`.
-
-    This path is relative to your GitHub project root directory.
-
-* `dockerfile-path`
-
-    (Default: `Dockerfile`)
-
-    The path of the Dockerfile used to build the EIF file.
-
-    This path is relative to `docker-build-context-path`
-
-* `enable-ghcr-push`
-
-    (Default: `false`)
-
-    Set to `true` to upload artifacts into ghcr.
-
-* `enable-artifact-sign`
-
-    (Default: `false`)
-
-    Set to `true` to use SigStore to sign the uploaded artifact on ghcr.
-
-    If this input is `true`, `enable-ghcr-push` must also set to `true`.
-
-* `eif-file-name`
-
-    The filename of the EIF file uploaded to ghcr
-
-    This must be set if `enable-ghcr-push` is `true`.
-
-* `eif-info-file-name`
-
-    The filename of the EIF info text file uploaded to ghcr
-
-    This must be set if `enable-ghcr-push` is `true`.
-
-* `artifact-tag`
-
-    The tag of the artifact uploaded to ghcr
-
-    This must be set if `enable-ghcr-push` is `true`.
-
-* `save-pcrs-in-annotation`
-
-    (Default: `false`)
-
-    Set to `true` to add PRC values of the EIF (PCR0, PCR1 and PCR2) as artifact annotation.
-
-    Read ORAS documentation for more detail: https://oras.land/docs/how_to_guides/manifest_annotations
-
-    If this input is `true`, `enable-ghcr-push` must also set to `true`.
-
-* `github-token`
-
-    (Default: `${{ github.token }}`)
-
-    The token used to sign in to ghcr
-
-### Outputs
-
-* `eif-file-path`
-
-    The path of the built EIF file
-
-* `eif-info-path`
-
-    The path of the text file containing the EIF information
-
-    Example of the file content:
-
-    ```json
-    {
-      "EifVersion": 4,
-      "Measurements": {
-        "HashAlgorithm": "Sha384 { ... }",
-        "PCR0": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-        "PCR1": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-        "PCR2": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-      },
-      "IsSigned": false,
-      "CheckCRC": true,
-      "ImageName": "1111111111111",
-      "ImageVersion": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-      "Metadata": {
-        "BuildTime": "2020-01-01T00:00:00.000000000+00:00",
-        "BuildTool": "nitro-cli",
-        "BuildToolVersion": "1.0.0",
-        "OperatingSystem": "Linux",
-        "KernelVersion": "4.0.0",
-        "DockerInfo": {
-          "Architecture": "amd64",
-          "Author": "",
-          "Comment": "",
-          "Config": {
-            "AttachStderr": false,
-            "AttachStdin": false,
-            "AttachStdout": false,
-            "Cmd": [
-              "/bin/sh",
-              "-c",
-              "/app"
-            ],
-            "Domainname": "",
-            "Entrypoint": null,
-            "Env": [
-              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-              "ARCH=x86_64"
-            ],
-            "ExposedPorts": null,
-            "Hostname": "",
-            "Image": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-            "Labels": null,
-            "OnBuild": null,
-            "OpenStdin": false,
-            "StdinOnce": false,
-            "Tty": false,
-            "User": "",
-            "WorkingDir": "/app"
-          },
-          "Created": "0001-01-01T00:00:00Z",
-          "DockerVersion": "",
-          "Id": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-          "Os": "linux",
-          "Parent": "",
-          "RepoDigests": [],
-          "RepoTags": [
-            "1111111111111:latest"
-          ],
-          "Size": 9999999,
-          "VirtualSize": 9999999
-        }
-      }
-    }
-    ```
-
-* `ghcr-artifact-digest`
-
-    The digest of the pushed ghcr artifact.
-
-    Only applicable when `enable-ghcr-push` is `true`.
-
-* `ghcr-artifact-path`
-    
-    The full path of the pushed ghcr artifact.
-
-    Only applicable when `enable-ghcr-push` is `true`.
-
-* `rekor-log-index`
-
-    The Rekor transparency log index of the signing.
-
-    It can be used to find the signing log on [Rekor Search](https://search.sigstore.dev/)
-
-    Only applicable when `enable-ghcr-push` is `true`.
-
-## How to verify the artifact signature
-
-In this Github Action, the artifact is uploaded to ghcr by [ORAS](https://oras.land/) and signed by [SigStore cosign](https://docs.sigstore.dev/signing/quickstart/).
-
-The uploaded artifact path is in the output `ghcr-artifact-path`, you can use the following command to pull it:
+## Verify on the host
 
 ```bash
-oras pull ghcr.io/username/repo:tag@sha256:<digest>
+nitro-cli describe-eif --eif-path idos-enclave.eif | jq .Measurements
 ```
 
-The artifact signing is recorded in Rekor transparency log.
+The values must match the PCRs printed by the workflow.
 
-With the Log index in output `rekor-log-index`, you can find the signing log on [Rekor Search](https://search.sigstore.dev/)
+## Reproducibility limits
 
-To verify the uploaded artifact against the signature, you can use the following command:
+Image timestamps are normalised, but anything the Dockerfile fetches
+unpinned (e.g. `apt-get install` without versions) can still change between
+builds. The guarantee this action gives is: the PCRs it prints belong to the
+exact EIF file it produced.
 
-Replace `<username>` with your Github username and `<repo>` with the Github repository name
+## Requirements
 
-```bash
-cosign verify ghcr.io/username/repo:tag \
-    --certificate-identity-regexp https://github.com/<username>/<repo>/ \
-    --certificate-oidc-issuer https://token.actions.githubusercontent.com
-```
+Linux X64 runner with Docker (GitHub-hosted `ubuntu-latest` works).
